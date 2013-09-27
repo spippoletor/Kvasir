@@ -99,6 +99,9 @@ def vulnlist():
 def get_nexpose_vulndata():
     """Downloads the detailed vulnerability data from Nexpose based on
     a vulnid passed to it"""
+
+    from NexposeAPI import VulnData
+
     form = SQLFORM.factory(
         Field('nexid', 'string', label=T('Nexpose ID')),
         Field('update', 'boolean', label=T('Update existing')),
@@ -175,6 +178,7 @@ def vuln_update():
 
     from lxml import etree
     from StringIO import StringIO
+    from NexposeAPI import NexposeAPI, VulnData
 
     response.title = "%s :: Nexpose Vulnerability Update" % (settings.title)
     form = SQLFORM.factory(
@@ -186,16 +190,16 @@ def vuln_update():
     )
 
     if form.accepts(request.vars):
-        napi = nexpose_api.NexposeAPI()
+        napi = NexposeAPI()
         napi.user_id = form.vars.username
         napi.password = form.vars.password
         napi.host = form.vars.hostname
         napi.port = form.vars.port
         if napi.login():
             # print("Logged in to Nexpose API")
-            vuln_class = nexpose_api.VulnData()
-            vuln_class.populate_summary(napi)
-            if (vuln_class.vulnerabilities) > 0:
+            vuln_class = VulnData(napi.sessionid)
+            vuln_class.populate_summary()
+            if vuln_class.vulnerabilities > 0:
                 existing_vulnids = []
                 for r in db(db.t_vulndata()).select(db.t_vulndata.f_vulnid):
                     existing_vulnids.append(r.f_vulnid)
@@ -212,11 +216,21 @@ def vuln_update():
                         # skip over existing entries if we're not overwriting
                         continue
 
-                    vulndetails = vuln_class.detail(napi, vuln.attrib['id'])
+                    try:
+                        vulndetails = vuln_class.detail(vuln.attrib['id'])
+                    except:
+                        try:
+                            vulndetails = vuln_class.detail(vuln.attrib['id'])
+                        except:
+                            try:
+                                vulndetails = vuln_class.detail(vuln.attrib['id'])
+                            except:
+                                raise
 
                     (vulnfields, references) = vuln_parse(vulndetails.find('Vulnerability'), fromapi=True)
 
-                    if not vulnfields: continue
+                    if not vulnfields:
+                        continue
 
                     # add the vulnerability to t_vulndata
                     try:

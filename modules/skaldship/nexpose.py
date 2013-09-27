@@ -235,13 +235,13 @@ def vuln_time_convert(vtime=''):
         if isinstance(vtime, str):
             if vtime[8] == "T":
                 tstr = "%%Y%%m%%dT%%H%%M%%S%s" % vtime[15:]
-                tval = time.strptime(vtime, tstr)
+                tval = datetime.strptime(vtime, tstr)
             else:
                 logger.error("Unknown datetime value: %s" % (vtime))
         else:
             logger.error("Invalid datetime value provided: %s" % (vtime))
             tval = datetime(1970, 1, 1)
-    return datetime.fromtimestamp(time.mktime(tval))
+    return tval
 
 ##-------------------------------------------------------------------------
 
